@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Rabin–Karp Visualizer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /* Simple clean styling */
+    body {
+      font-family: 'Poppins', Arial, sans-serif;
+      background: #f6f9ff;
+      color: #0d2035;
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      width: 880px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(13,32,53,0.08);
+      padding: 26px;
+    }
+    h1 { color: #08306b; margin: 0 0 8px 0; }
+    p.lead { margin: 4px 0 18px 0; color:#41556a; }
+    label { display:block; margin-top: 12px; font-weight:600; }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 10px 12px;
+      margin-top:6px;
+      border-radius:6px;
+      border:1px solid #d7e0ee;
+      box-sizing: border-box;
+      font-size: 15px;
+    }
+    .row { display:flex; gap:12px; margin-top:12px; }
+    .col { flex:1; }
+    button {
+      margin-top: 14px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: #0b66d1;
+      color: white;
+      cursor: pointer;
+      font-weight:700;
+      font-size: 14px;
+    }
+    button.secondary {
+      background:#6c7a8a;
+      margin-left:8px;
+    }
+    #result {
+      margin-top: 18px;
+      font-weight:700;
+      color: #0b6620;
+    }
+    /* Text display area for highlighting */
+    .text-area {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius:8px;
+      border:1px dashed #e1e8f5;
+      background:#fbfdff;
+      min-height:48px;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    .token { padding:2px 4px; border-radius:4px; }
+    .normal { background:transparent; color:#123; }
+    .highlight { background: #ffef9d; color:#0b3; border: 1px solid #ffd54a; }
+    .match { background:#c8f7d4; color:#083; border:1px solid #89e0a2; }
+    .hash-box { margin-top:10px; font-family: monospace; color:#333; }
+    .small { font-size:13px; color:#556; margin-top:6px;}
+    footer { margin-top:18px; font-size:13px; color:#6b7788; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Rabin–Karp Visualizer</h1>
+    <p class="lead">Enter text and a pattern. Click <b>Search</b> to run Rabin–Karp (rolling hash) and see the result.</p>
+
+    <label for="textInput">Text</label>
+    <textarea id="textInput" rows="3">ABCCDDAEFG</textarea>
+
+    <label for="patternInput">Pattern</label>
+    <input id="patternInput" type="text" value="CDD" />
+
+    <div class="row">
+      <div class="col">
+        <button id="searchBtn">Search</button>
+        <button id="stepBtn" class="secondary">Step-by-step</button>
+        <button id="resetBtn" class="secondary">Reset</button>
+      </div>
+      <div style="align-self:center;">
+        <span class="small">d = 256, q = 101 (prime)</span>
+      </div>
+    </div>
+
+    <div id="result" aria-live="polite"></div>
+
+    <div class="text-area" id="displayText"></div>
+
+    <div class="hash-box" id="hashInfo"></div>
+
+    <footer>
+      Demo by: <b>Your Name</b> — Rabin–Karp algorithm visual demo. Use Step-by-step to see rolling hash updates.
+    </footer>
+  </div>
+
+  <script>
+    // Rabin-Karp visualizer JS
+    const d = 256;
+    const q = 101; // prime
+    const searchBtn = document.getElementById('searchBtn');
+    const stepBtn = document.getElementById('stepBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const textInput = document.getElementById('textInput');
+    const patternInput = document.getElementById('patternInput');
+    const resultEl = document.getElementById('result');
+    const displayText = document.getElementById('displayText');
+    const hashInfo = document.getElementById('hashInfo');
+
+    function resetUI() {
+      resultEl.textContent = '';
+      hashInfo.textContent = '';
+      renderText();
+    }
+
+    function renderText(highlightIndex = -1, matchLen = 0, matchFound=false) {
+      const txt = textInput.value;
+      let html = '';
+      for (let i=0;i<txt.length;i++) {
+        const ch = txt[i];
+        let cls = 'token normal';
+        if (matchFound && i>=highlightIndex && i<highlightIndex+matchLen) cls = 'token match';
+        else if (!matchFound && highlightIndex === i) cls = 'token highlight';
+        html += `<span class="${cls}">${ch}</span>`;
+      }
+      displayText.innerHTML = html;
+    }
+
+    function showHashInfo(msg) {
+      hashInfo.innerHTML = '<div>' + msg + '</div>';
+    }
+
+    function rabinKarpRun() {
+  const text = document.getElementById("textInput").value;
+  const pattern = document.getElementById("patternInput").value;
+  const result = document.getElementById("result");
+  const d = 256;      // number of characters
+  const q = 101;      // a prime number
+  const n = text.length;
+  const m = pattern.length;
+  let p = 0, t = 0, h = 1;
+  let matches = [];
+
+  // Calculate h = pow(d, m-1) % q
+  for (let i = 0; i < m - 1; i++)
+      h = (h * d) % q;
+
+  // Calculate initial hash values
+  for (let i = 0; i < m; i++) {
+      p = (d * p + pattern.charCodeAt(i)) % q;
+      t = (d * t + text.charCodeAt(i)) % q;
+  }
+
+  // Slide the pattern over text
+  for (let i = 0; i <= n - m; i++) {
+      if (p === t) {
+          let match = true;
+          for (let j = 0; j < m; j++) {
+              if (text[i + j] !== pattern[j]) {
+                  match = false;
+                  break;
+              }
+          }
+          if (match) {
+              matches.push(i);  // store all matches
+          }
+      }
+
+      if (i < n - m) {
+          t = (d * (t - text.charCodeAt(i) * h) + text.charCodeAt(i + m)) % q;
+          if (t < 0) t = (t + q);
+      }
+  }
+
+  // Display all matches
+  if (matches.length > 0) {
+      result.innerHTML = `Pattern found at indices: ${matches.join(", ")}`;
+  } else {
+      result.innerHTML = "Pattern not found.";
+  }
+}
+
+
+    // step-by-step runner
+    function rabinKarpStepByStep() {
+      const text = textInput.value;
+      const pattern = patternInput.value;
+      if (!pattern) { alert('Enter a pattern'); return; }
+      if (pattern.length > text.length) { resultEl.textContent = 'Pattern longer than text.'; return; }
+
+      const n = text.length, m = pattern.length;
+      let h = 1;
+      for (let i=0;i<m-1;i++) h = (h * d) % q;
+
+      let p = 0, t = 0;
+      for (let i=0;i<m;i++) {
+        p = (d*p + pattern.charCodeAt(i)) % q;
+        t = (d*t + text.charCodeAt(i)) % q;
+      }
+
+      let s = 0;
+      resultEl.textContent = 'Step-by-step mode: running...';
+      renderText();
+
+      function step() {
+        if (s > n - m) {
+          resultEl.textContent = 'Finished. No match found.';
+          renderText();
+          showHashInfo(`Pattern hash: ${p}`);
+          return;
+        }
+
+        // highlight current window start
+        renderText(s, m, false);
+        showHashInfo(`s=${s} | Pattern hash (p)=${p} | Window hash (t)=${t} | h=${h}`);
+
+        // if hashes equal, verify
+        if (p === t) {
+          let match = true;
+          for (let j=0;j<m;j++) {
+            if (text[s+j] !== pattern[j]) { match = false; break; }
+          }
+          if (match) {
+            resultEl.textContent = 'Pattern found at index ' + s + ' (verified)';
+            renderText(s, m, true);
+            showHashInfo(`Match verified at s=${s} | pattern hash p=${p} | window hash t=${t}`);
+            return;
+          } else {
+            // collision case
+            resultEl.textContent = 'Hash matched but characters differ (collision) at s=' + s;
+          }
+        } else {
+          resultEl.textContent = 'No hash match at s=' + s;
+        }
+
+        // prepare next
+        if (s < n - m) {
+          t = (d * (t - text.charCodeAt(s) * h) + text.charCodeAt(s + m)) % q;
+          if (t < 0) t += q;
+        }
+        s++;
+        // delay and step again
+        setTimeout(step, 900);
+      }
+      step();
+    }
+
+    searchBtn.addEventListener('click', () => rabinKarpRun(false));
+    stepBtn.addEventListener('click', rabinKarpStepByStep);
+    resetBtn.addEventListener('click', () => { textInput.value = 'ABCCDDAEFG'; patternInput.value = 'CDD'; resetUI(); });
+
+    // initialize display
+    renderText();
+  </script>
+</body>
+</html>
